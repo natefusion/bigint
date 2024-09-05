@@ -9,7 +9,7 @@ OBJ_DIR ?= $(DEBUG)
 SRC_DIR := src
 
 CC := gcc
-SRCS := $(wildcard $(SRC_DIR)/*.c)
+SRCS := src/main.c
 
 CFLAGS := -Wall -Werror -Wextra -fno-omit-frame-pointer
 CPPFLAGS := -MMD -MP
