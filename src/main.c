@@ -509,14 +509,31 @@ int main() {
                 .result = {
                     .d0 = 0,
                     .d1 = 0,
-                    .d2 = 0x4000000000000000,
+                    .d2 = 0x3FFFFFFFFFFFFFFF,
                 },
             },
+            {
+                .m = {
+                    .d0 = 0xabcd2f,
+                    .d1 = 0xcd2249,
+                    .d2 = 0xbed710,
+                },
+                .n = {
+                    .d0 = 0x289043,
+                    .d1 = 0x1291ab,
+                    .d2 = 0x895903,
+                },
+                .result = {
+                    .d0 = 0,
+                    .d1 = 0,
+                    .d2 = 0x04,
+                },
+            }
         };
         div_naive_u192_tests.data = d;
         div_naive_u192_tests.len = sizeof(d) / sizeof(struct unit_test_type);
     };
     unit_test(str_lit("div_naive_u192"), div_naive_u192, div_naive_u192_tests);
-    
+
     return 0;
 }
