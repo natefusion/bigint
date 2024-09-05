@@ -220,10 +220,10 @@ void div_full_u192(u192 m, u192 n, u192 *q, u192 *r) {
     for (u64 i = 0; i < 192; ++i) {
         u64 j = 191 - i;
         rem = mul_naive_u192(rem, (u192){.d2=2});
-        rem.d2 |= (num.d[i/64] >> (j % 64)) & 1;
+        rem.d2 |= (num.d[i/64] >> (j % 64)) & 1ULL;
         if (ge_u192(rem, dem)) {
             rem = sub_u192(rem, dem);
-            quot.d[i/64] |= 1 << (j % 64);
+            quot.d[i/64] |= 1ULL << (j % 64);
         }
     }
     
@@ -509,7 +509,7 @@ int main() {
                 .result = {
                     .d0 = 0,
                     .d1 = 0,
-                    .d2 = 9223372036854775808ULL,
+                    .d2 = 0x4000000000000000,
                 },
             },
         };
