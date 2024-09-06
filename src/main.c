@@ -142,16 +142,9 @@ u192 mul_naive_u192(u192 m, u192 n) {
     u64 mul = 0;
 
     mulq(&carry, &mul, m.d2, n.d2);
-    {
-        u64_carry d2 = adc_u64(result.d2, mul, 0);
-        result.d2 = d2.res;
+    result.d2 = mul;
+    result.d1 = carry;
 
-        u64 new_carry = d2.carry + carry; // fairly sure this number will always fit into 64 bits
-        u64_carry d1 = adc_u64(result.d1, new_carry, 0);
-        result.d1 = d1.res;
-        result.d0 += d1.carry;
-
-    }
 
     mulq(&carry, &mul, m.d1, n.d2);
     {
@@ -356,10 +349,11 @@ int main() {
 
     /* printf(".a = %u\n.d0 = %u\n.c = %u\n\n", x.a, x.d0, x.c); */
     printf("%s\n", y.data);
+    free(y.data);
 
     unit_test_array_type mul_naive_u192_tests;
     {
-        struct unit_test_type d[] = {
+        static struct unit_test_type d[] = {
             {
                 .m = {
                     .d0 = 0,
@@ -495,7 +489,24 @@ int main() {
                     .d1 = 0,
                     .d2 = 0x0000666372911530,
                 },
-            }
+            },
+            {
+                .m = {
+                    .d0 = 0,
+                    .d1 = 1,
+                    .d2 = 0xFFFFFFFFFFFFFFFF,
+                },
+                .n = {
+                    .d0 = 0,
+                    .d1 = 0,
+                    .d2 = 0xFFFFFFFFFFFFFFFF,
+                },
+                .result = {
+                    .d0 = 1,
+                    .d1 = 0xFFFFFFFFFFFFFFFD,
+                    .d2 = 0x0000000000000001,
+                },
+            },
         };
         mul_naive_u192_tests.data = d;
         mul_naive_u192_tests.len = sizeof(d) / sizeof(struct unit_test_type);
@@ -504,7 +515,7 @@ int main() {
 
     unit_test_array_type div_naive_u192_tests;
     {
-        struct unit_test_type d[] = {
+        static struct unit_test_type d[] = {
             {
                 .m = {
                     .d0 = MAX_U64,
