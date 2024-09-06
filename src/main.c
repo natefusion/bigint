@@ -3,16 +3,11 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include "randq.h"
+#include "hr_timer.h"
 
 typedef uint64_t u64;
 typedef uint32_t u32;
-
-#define MAX_U64 0xFFFFFFFFFFFFFFFFULL
-#define MAX_U32 0xFFFFFFFFUL
-
-#define BIT(x, i) (((x) >> (i)) & 1)
-
-#define MIN(x, y) ((x) < (y) ? (x) : (y))
 
 typedef union {
     // Big end first
@@ -20,17 +15,13 @@ typedef union {
     struct {u64 d0; u64 d1; u64 d2;};
 } u192;
 
-#define MAX_U192 (u192) {.d0=MAX_U64,.d1=MAX_U64,.d2=MAX_U64}
-
 typedef struct {
     char *data;
     u64 len;
 } str;
 
-void str_free(str s) {
-    free(s.data);
-}
-
+#define MAX_U64 0xFFFFFFFFFFFFFFFFULL
+#define MAX_U192 (u192) {.d0=MAX_U64,.d1=MAX_U64,.d2=MAX_U64}
 #define str_lit(x) (str) { .data = x, .len = sizeof(x) - 1 }
 
 void print_u192(u192 x) {
@@ -315,6 +306,45 @@ void unit_test(str which, u192 (*func)(u192, u192), unit_test_array_type tests) 
     printf("%lu / %lu tests passed for %s\n", correct, tests.len, which.data);
 }
 
+void profile(str which, u192 (*func)(u192, u192)) {
+    printf("Profiling %s...\n", which.data);
+    u64 times_to_run = 0xFFFFFFFULL;
+
+    u192 total_time = {0};
+    for (u64 i = 0; i < times_to_run; ++i) {
+        u192 m = {
+            .d0 = randq64_uint64(),
+            .d1 = randq64_uint64(),
+            .d2 = randq64_uint64(),
+        };
+        
+        u192 n = {
+            .d0 = randq64_uint64(),
+            .d1 = randq64_uint64(),
+            .d2 = randq64_uint64(),
+        };
+
+
+        u64 start = ns();
+        func(m, n);
+        u64 end = ns();
+
+        total_time = add_u192(total_time, (u192){.d2 = end - start});
+
+        if (i % 100000ULL == 0) {
+            printf("%s has run %lu times\n", which.data, i+1);
+        }
+    }
+
+    u192 avg_time = div_naive_u192(total_time, (u192){.d2=times_to_run});
+    str total_time_str = tostr_u192(total_time);
+    str avg_time_str = tostr_u192(avg_time);
+    printf("It took %s ns to run %s %lu times for an average of %s ns per call\n", total_time_str.data, which.data, times_to_run, avg_time_str.data);
+    
+    free(total_time_str.data);
+    free(avg_time_str.data);
+}
+
 int main() {
     u192 x = make_u192(str_lit("6277101735386680763835789423207666416102355444464034512895"));
     /* if (argc < 2) return 1; */
@@ -329,7 +359,6 @@ int main() {
 
     /* printf(".a = %u\n.d0 = %u\n.c = %u\n\n", x.a, x.d0, x.c); */
     printf("%s\n", y.data);
-    /* str_free(y); */
 
     unit_test_array_type mul_naive_u192_tests;
     {
@@ -535,6 +564,8 @@ int main() {
         div_naive_u192_tests.len = sizeof(d) / sizeof(struct unit_test_type);
     };
     unit_test(str_lit("div_naive_u192"), div_naive_u192, div_naive_u192_tests);
+
+    profile(str_lit("mul_naive_u192"), mul_naive_u192);
 
     return 0;
 }
