@@ -8,6 +8,7 @@
 
 typedef uint64_t u64;
 typedef uint32_t u32;
+typedef uint8_t u8;
 
 typedef union {
     // Big end first
@@ -37,15 +38,15 @@ typedef struct {
     u64 carry;
 } u64_carry;
 
-u64_carry adc_u64(u64 x, u64 y, u64 c) {
+u64_carry adc_u64(u64 x, u64 y, bool c) {
     u64 result = x + y + c;
-    u64 carry = result < x;
+    bool carry = result < x;
     return (u64_carry) { .res = result, .carry = carry };
 }
 
-u64_carry sbb_u64(u64 x, u64 y, u64 b) {
+u64_carry sbb_u64(u64 x, u64 y, bool b) {
     u64 result = x - (y + b);
-    u64 borrow = result > x;
+    bool borrow = result > x;
     return (u64_carry) { .res = result, .carry = borrow };
 }
 
@@ -144,20 +145,19 @@ u192 mul_naive_u192(u192 m, u192 n) {
     {
         u64_carry d2 = adc_u64(result.d2, mul, 0);
         result.d2 = d2.res;
-        if (d2.carry != 0) {
-            result.d1 += d2.carry;
-        }
-        result.d1 += carry;
+
+        u64 new_carry = d2.carry + carry; // fairly sure this number will always fit into 64 bits
+        u64_carry d1 = adc_u64(result.d1, new_carry, 0);
+        result.d1 = d1.res;
+        result.d0 += d1.carry;
+
     }
 
     mulq(&carry, &mul, m.d1, n.d2);
     {
         u64_carry d1 = adc_u64(result.d1, mul, 0);
         result.d1 = d1.res;
-        if (d1.carry != 0) {
-            result.d0 += d1.carry;
-        }
-        result.d0 += carry;
+        result.d0 += d1.carry + carry;
     }
 
     mulq(&carry, &mul, m.d0, n.d2);
@@ -169,10 +169,7 @@ u192 mul_naive_u192(u192 m, u192 n) {
     {
         u64_carry d1 = adc_u64(result.d1, mul, 0);
         result.d1 = d1.res;
-        if (d1.carry != 0) {
-            result.d0 += d1.carry;
-        }
-        result.d0 += carry;
+        result.d0 += d1.carry + carry;
     }
 
     mulq(&carry, &mul, m.d1, n.d1);
@@ -565,7 +562,7 @@ int main() {
     };
     unit_test(str_lit("div_naive_u192"), div_naive_u192, div_naive_u192_tests);
 
-    profile(str_lit("mul_naive_u192"), mul_naive_u192);
+    /* profile(str_lit("mul_naive_u192"), mul_naive_u192); */
 
     return 0;
 }
