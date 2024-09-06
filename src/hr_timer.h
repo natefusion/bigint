@@ -41,7 +41,7 @@ uint64_t ns() {
     uint64_t now;
     struct timespec spec;
     clock_gettime(CLOCKID, &spec);
-    now = spec.tv_sec * 1.0e9 + spec.tv_nsec;
+    now = (uint64_t)((double)spec.tv_sec * 1.0e9 + (double)spec.tv_nsec);
     return now;
 #elif defined(_WIN32)
     static LARGE_INTEGER win_frequency;

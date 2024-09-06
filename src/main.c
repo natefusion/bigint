@@ -573,7 +573,7 @@ int main() {
     };
     unit_test(str_lit("div_naive_u192"), div_naive_u192, div_naive_u192_tests);
 
-    /* profile(str_lit("mul_naive_u192"), mul_naive_u192); */
+    profile(str_lit("mul_naive_u192"), mul_naive_u192);
 
     return 0;
 }

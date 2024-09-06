@@ -127,6 +127,6 @@ uint32_t randq64_uint32()
  */
 double randq64_double()
 {
-    return 5.42101086242752217E-20 * randq64_uint64();
+    return 5.42101086242752217E-20 * (double)randq64_uint64();
 }
 

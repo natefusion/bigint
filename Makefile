@@ -11,14 +11,14 @@ SRC_DIR := src
 CC := gcc
 SRCS := src/main.c src/randq.c
 
-CFLAGS := -Wall -Werror -Wextra -fno-omit-frame-pointer
+CFLAGS := -Wall -Werror -Wextra -pedantic -Werror=format-security -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wconversion -fno-omit-frame-pointer -pipe
 CPPFLAGS := -MMD -MP
 
 ifeq ($(mode), debug)
-	CFLAGS += -g3 -O0
+	CFLAGS += -g -O0
 else
 	ifeq ($(mode), release)
-		CFLAGS += -O3
+		CFLAGS += -O2
 		OBJ_DIR = $(RELEASE)
 	endif
 endif
