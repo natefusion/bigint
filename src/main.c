@@ -196,7 +196,8 @@ u192 mul_naive_u192(u192 m, u192 n) {
 }
 
 u192 pow_naive_u192(u192 base, u64 power) {
-    u192 result = {.d1=1};
+    u192 result = {.d2=1};
+
     for (u64 i = 0; i < power; ++i) {
         result = mul_naive_u192(base, result);
     }
