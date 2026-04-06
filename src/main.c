@@ -176,6 +176,47 @@ u192 mul_naive_u192(u192 m, u192 n) {
     return result;
 }
 
+u192 mul_toomcook_u192(u192 m, u192 n) {
+    // these all better not overflow ...
+    // these results can be negative ...
+    // can I ignore it?
+    u64 p_0 = m.d0 + m.d2;
+    u64 p0 = m.d0;
+    u64 p1 = p_0 + m.d1;
+    u64 p_1 = p_0 - m.d1;
+    u64 p_2 = (p_1 + m.d2)*2 - m.d0;
+    u64 pinf = m.d2;
+
+    u64 q_0 = n.d0 + n.d2;
+    u64 q0 = n.d0;
+    u64 q1 = q_0 + n.d1;
+    u64 q_1 = q_0 - n.d1;
+    u64 q_2 = (q_1 + n.d2)*2 - n.d0;
+    u64 qinf = n.d2;
+
+    u64 r0 = p0*q0;
+    u64 r1 = p1*q1;
+    u64 r_1 = p_1*q_1;
+    u64 r_2 = p_2*q_2;
+    u64 rinf = pinf*qinf;
+
+    u64 R0 = r0;
+    u64 R4 = rinf;
+    u64 R3 = (r_2 - r1)/3;
+    u64 R1 = (r1 - r_1)/2;
+    u64 R2 = r_1 - r0;
+    R3 = (R2 - R3)/2 + 2*rinf;
+    R2 = R2 + R1 - R4;
+    R1 = R1 - R3;
+
+    printf("m0=%lu\nm1=%lu\nm2=%lu\n", m.d0, m.d1, m.d2);
+    printf("n0=%lu\nn1=%lu\nn2=%lu\n", n.d0, n.d1, n.d2);
+    printf("p0=%lu\np1=%lu\np_1=%lu\np_2=%lu\np_2=%lu\npinf\n", p0, p1, p_1, p_2, pinf);
+    printf("q0=%lu\nq1=%lu\nq_1=%lu\nq_2=%lu\nq_2=%lu\nqinf\n", q0, q1, q_1, q_2, qinf);
+    printf("R0=%lu\nR1=%lu\nR2=%lu\nR3=%lu\nR4=%lu\n", R0, R1, R2, R3, R4);
+    return (u192){0};
+}
+
 u192 pow_naive_u192(u192 base, u64 power) {
     u192 result = {.d2=1};
 
@@ -335,22 +376,7 @@ void profile(str which, u192 (*func)(u192, u192)) {
     free(avg_time_str.data);
 }
 
-int main() {
-    u192 x = make_u192(str_lit("6277101735386680763835789423207666416102355444464034512895"));
-    /* if (argc < 2) return 1; */
-    /* str s = {.data = argv[1], .len = strlen(argv[1])}; */
-    /* u192 x = make_u192(s); */
-    str y = tostr_u192(x);
-
-    /* u192 x = make_u192(str_lit("0")); */
-    /* u192 y = make_u192(str_lit("1")); */
-    /* u192 z = sub_u192(x, y); */
-    /* str s = tostr_u192(x); */
-
-    /* printf(".a = %u\n.d0 = %u\n.c = %u\n\n", x.a, x.d0, x.c); */
-    printf("%s\n", y.data);
-    free(y.data);
-
+void unit_test_mul_u192(void) {
     unit_test_array_type mul_naive_u192_tests;
     {
         static struct unit_test_type d[] = {
@@ -512,7 +538,9 @@ int main() {
         mul_naive_u192_tests.len = sizeof(d) / sizeof(struct unit_test_type);
     }
     unit_test(str_lit("mul_naive_u192"), mul_naive_u192, mul_naive_u192_tests);
+}
 
+void unit_test_div_u192(void) {
     unit_test_array_type div_naive_u192_tests;
     {
         static struct unit_test_type d[] = {
@@ -572,8 +600,29 @@ int main() {
         div_naive_u192_tests.len = sizeof(d) / sizeof(struct unit_test_type);
     };
     unit_test(str_lit("div_naive_u192"), div_naive_u192, div_naive_u192_tests);
+}
 
-    profile(str_lit("mul_naive_u192"), mul_naive_u192);
+int main() {
+    /* u192 x = make_u192(str_lit("6277101735386680763835789423207666416102355444464034512895")); */
+    /* if (argc < 2) return 1; */
+    /* str s = {.data = argv[1], .len = strlen(argv[1])}; */
+    /* u192 x = make_u192(s); */
+    /* str y = tostr_u192(x); */
+
+    /* u192 x = make_u192(str_lit("0")); */
+    /* u192 y = make_u192(str_lit("1")); */
+    /* u192 z = sub_u192(x, y); */
+    /* str s = tostr_u192(x); */
+
+    /* printf(".a = %u\n.d0 = %u\n.c = %u\n\n", x.a, x.d0, x.c); */
+    /* printf("%s\n", y.data); */
+    /* free(y.data); */
+
+    /* profile(str_lit("mul_naive_u192"), mul_naive_u192); */
+
+    u192 m = make_u192(str_lit("1234567890123456789012"));
+    u192 n = make_u192(str_lit("987654321987654321098"));
+    mul_toomcook_u192(m, n);
 
     return 0;
 }
