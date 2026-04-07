@@ -265,6 +265,61 @@ u192 mod_naive_u192(u192 m, u192 n) {
     return result;
 }
 
+static u64 VE[5][5] = {
+    {1,  0, 0,  0,  0},//0
+    {1,  1, 1,  1,  1},//1
+    {1, -1, 1, -1,  1},//-1
+    {1,  2, 4,  8, 16},//2
+    {0,  0, 0,  0,  1},//inf
+};
+
+static u64 VE_inv6[5][5] = {
+    { 6,  0,  0,  0,   0},//0
+    {-3,  6, -2, -1,  12},//1
+    {-6,  3,  3,  0,  -6},//-1
+    { 3, -3, -1,  1, -12},//2
+    { 0,  0,  0,  0,   6},//inf
+};
+
+u192 DT3_u192(u192 m, u192 n) {
+    constexpr u64 b = 32;
+    // b = 2^32
+    // B = b^i = 2^32
+    // The largest number that can be multiplied properly has 96 set bits
+    u192 m2 = (u192){.d2=m.d1 & 0x00000000FFFFFFFFULL};
+    u192 m1 = (u192){.d2=(m.d2 & 0xFFFFFFFF00000000ULL) >> 32ULL};
+    u192 m0 = (u192){.d2=m.d2 & 0x00000000FFFFFFFFULL};
+
+    u192 n2 = (u192){.d2=n.d1 & 0x00000000FFFFFFFFULL};
+    u192 n1 = (u192){.d2=(n.d2 & 0xFFFFFFFF00000000ULL) >> 32ULL};
+    u192 n0 = (u192){.d2=n.d2 & 0x00000000FFFFFFFFULL};
+    
+    return (u192){0};
+}
+
+/*
+  for DMMM
+  R  = ?
+  N  = ?
+  N' = ?
+ */
+
+u192 DMMM_u192(u192 m, u192 n) {
+    constexpr u64 logR = 1;
+    constexpr u192 R1 = (u192){.d2=(1ULL << logR) - 1};
+    constexpr u192 N = (u192){.d2=0};
+    constexpr u192 N_ = (u192){.d2=0};
+    
+    u192 T = DT3_u192(m, n);
+    u192 s = DT3_u192(bitand_u192(T, R1), N_);
+    u192 t = DT3_u192(bitand_u192(s, R1), N);
+    u192 z = mul_naive_u192((u192){.d2=9}, T);
+    z = add_u192(z, t);
+    z = logshr_u192(z, logR);
+
+    return z;
+}
+
 u192 mul_toomcook_u192(u192 m, u192 n) {
     // these all better not overflow ...
     // these results can be negative ...
