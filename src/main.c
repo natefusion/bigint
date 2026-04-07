@@ -114,6 +114,42 @@ u192 logshl_u192(u192 x, u64 s) {
     return out;
 }
 
+u192 logshr_u192(u192 x, u64 s) {
+    if (s == 0) return x;
+    if (s >= 192) return (u192){0};
+
+    u192 out = (u192){0};
+
+    u64 left_part_len = 0;
+    int a = 0;
+    if (s < 64) {
+        left_part_len = 64 - s;
+        a = 0;
+    } else if (s < 128) {
+        left_part_len = 128 - s;
+        a = 1;
+    } else if (s < 192) {
+        left_part_len = 192 - s;
+        a = 2;
+    } else {
+        // dead path
+    }
+
+    u64 bm = (left_part_len==64 ? ~0ULL : ((1ULL<<left_part_len)-1)<<s);
+
+    for (int i = 0; i < 3; ++i) {
+        int bit_idx = i;
+        u64 left_part = (x.d[bit_idx] & bm) >> (s % 64);
+        u64 right_part = (x.d[bit_idx] & (~bm)) << (left_part_len % 64);
+        if (bit_idx+a < 3) {
+            out.d[bit_idx+a] |= left_part;
+            if (bit_idx+a+1 < 3) out.d[bit_idx+a+1] |= right_part;
+        }
+    }
+
+    return out;
+}
+
 bool eq_u192(u192 m, u192 n) {
     bool a = m.d0 == n.d0;
     bool b = m.d1 == n.d1;
@@ -265,37 +301,37 @@ u192 mod_naive_u192(u192 m, u192 n) {
     return result;
 }
 
-static u64 VE[5][5] = {
-    {1,  0, 0,  0,  0},//0
-    {1,  1, 1,  1,  1},//1
-    {1, -1, 1, -1,  1},//-1
-    {1,  2, 4,  8, 16},//2
-    {0,  0, 0,  0,  1},//inf
-};
+/* static u64 VE[5][5] = { */
+/*     {1,  0, 0,  0,  0},//0 */
+/*     {1,  1, 1,  1,  1},//1 */
+/*     {1, (u64)-1, 1, (u64)-1,  1},//-1 */
+/*     {1,  2, 4,  8, 16},//2 */
+/*     {0,  0, 0,  0,  1},//inf */
+/* }; */
 
-static u64 VE_inv6[5][5] = {
-    { 6,  0,  0,  0,   0},//0
-    {-3,  6, -2, -1,  12},//1
-    {-6,  3,  3,  0,  -6},//-1
-    { 3, -3, -1,  1, -12},//2
-    { 0,  0,  0,  0,   6},//inf
-};
+/* static u64 VE_inv6[5][5] = { */
+/*     { 6,  0,  0,  0,   0},//0 */
+/*     {(u64)-3,  6, (u64)-2, (u64)-1,  12},//1 */
+/*     {(u64)-6,  3,  3,  0,  (u64)-6},//-1 */
+/*     { 3, (u64)-3, (u64)-1,  1, (u64)-12},//2 */
+/*     { 0,  0,  0,  0,   6},//inf */
+/* }; */
 
-u192 DT3_u192(u192 m, u192 n) {
-    constexpr u64 b = 32;
-    // b = 2^32
-    // B = b^i = 2^32
-    // The largest number that can be multiplied properly has 96 set bits
-    u192 m2 = (u192){.d2=m.d1 & 0x00000000FFFFFFFFULL};
-    u192 m1 = (u192){.d2=(m.d2 & 0xFFFFFFFF00000000ULL) >> 32ULL};
-    u192 m0 = (u192){.d2=m.d2 & 0x00000000FFFFFFFFULL};
+/* u192 DT3_u192(u192 m, u192 n) { */
+/*     constexpr u64 b = 32; */
+/*     // b = 2^32 */
+/*     // B = b^i = 2^32 */
+/*     // The largest number that can be multiplied properly has 96 set bits */
+/*     u192 m2 = (u192){.d2=m.d1 & 0x00000000FFFFFFFFULL}; */
+/*     u192 m1 = (u192){.d2=(m.d2 & 0xFFFFFFFF00000000ULL) >> 32ULL}; */
+/*     u192 m0 = (u192){.d2=m.d2 & 0x00000000FFFFFFFFULL}; */
 
-    u192 n2 = (u192){.d2=n.d1 & 0x00000000FFFFFFFFULL};
-    u192 n1 = (u192){.d2=(n.d2 & 0xFFFFFFFF00000000ULL) >> 32ULL};
-    u192 n0 = (u192){.d2=n.d2 & 0x00000000FFFFFFFFULL};
+/*     u192 n2 = (u192){.d2=n.d1 & 0x00000000FFFFFFFFULL}; */
+/*     u192 n1 = (u192){.d2=(n.d2 & 0xFFFFFFFF00000000ULL) >> 32ULL}; */
+/*     u192 n0 = (u192){.d2=n.d2 & 0x00000000FFFFFFFFULL}; */
     
-    return (u192){0};
-}
+/*     return (u192){0}; */
+/* } */
 
 /*
   for DMMM
@@ -304,21 +340,21 @@ u192 DT3_u192(u192 m, u192 n) {
   N' = ?
  */
 
-u192 DMMM_u192(u192 m, u192 n) {
-    constexpr u64 logR = 1;
-    constexpr u192 R1 = (u192){.d2=(1ULL << logR) - 1};
-    constexpr u192 N = (u192){.d2=0};
-    constexpr u192 N_ = (u192){.d2=0};
+/* u192 DMMM_u192(u192 m, u192 n) { */
+/*     constexpr u64 logR = 1; */
+/*     constexpr u192 R1 = (u192){.d2=(1ULL << logR) - 1}; */
+/*     constexpr u192 N = (u192){.d2=0}; */
+/*     constexpr u192 N_ = (u192){.d2=0}; */
     
-    u192 T = DT3_u192(m, n);
-    u192 s = DT3_u192(bitand_u192(T, R1), N_);
-    u192 t = DT3_u192(bitand_u192(s, R1), N);
-    u192 z = mul_naive_u192((u192){.d2=9}, T);
-    z = add_u192(z, t);
-    z = logshr_u192(z, logR);
+/*     u192 T = DT3_u192(m, n); */
+/*     u192 s = DT3_u192(bitand_u192(T, R1), N_); */
+/*     u192 t = DT3_u192(bitand_u192(s, R1), N); */
+/*     u192 z = mul_naive_u192((u192){.d2=9}, T); */
+/*     z = add_u192(z, t); */
+/*     z = logshr_u192(z, logR); */
 
-    return z;
-}
+/*     return z; */
+/* } */
 
 u192 mul_toomcook_u192(u192 m, u192 n) {
     // these all better not overflow ...
@@ -757,11 +793,11 @@ int main() {
 
     /* profile(str_lit("mul_naive_u192"), mul_naive_u192); */
 
-    u192 m = make_u192(str_lit("1234567890123456789012"));
-    u192 n = make_u192(str_lit("987654321987654321098"));
-    u192 out = mul_toomcook_u192(m, n);
-    str s = tostr_u192(out);
-    printf("%s", s.data);
+    /* u192 m = make_u192(str_lit("1234567890123456789012")); */
+    /* u192 n = make_u192(str_lit("987654321987654321098")); */
+    /* u192 out = mul_toomcook_u192(m, n); */
+    /* str s = tostr_u192(out); */
+    /* printf("%s", s.data); */
 
     /* u192 m = (u192) { */
     /*     .d0 = 0, */
@@ -769,7 +805,7 @@ int main() {
     /*     .d2 = 0xABCDF0000000000E, */
     /* }; */
 
-    /* u192 out = logshl_u192(m, 1); */
+    /* u192 out = logshr_u192(m, 1); */
     /* printf("%064lb%064lb%064lb\n", m.d0, m.d1, m.d2); */
     /* printf("%064lb%064lb%064lb\n", out.d0, out.d1, out.d2); */
     /* str s = tostr_u192(out); */
