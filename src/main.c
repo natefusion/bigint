@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbit.h>
+#include <assert.h>
 #include "randq.h"
 #include "hr_timer.h"
 
@@ -74,6 +76,42 @@ u192 sub_u192(u192 m, u192 n) {
         .d1 = c.res,
         .d0 = b.res,
     };
+}
+
+u192 logshl_u192(u192 x, u64 s) {
+    if (s == 0) return x;
+    if (s >= 192) return (u192){0};
+
+    u192 out = (u192){0};
+
+    u64 right_part_len = 0;
+    int a = 0;
+    if (s < 64) {
+        right_part_len = 64 - s;
+        a = 0;
+    } else if (s < 128) {
+        right_part_len = 128 - s;
+        a = 1;
+    } else if (s < 192) {
+        right_part_len = 192 - s;
+        a = 2;
+    } else {
+        // dead path
+    }
+
+    u64 bm = (right_part_len==64 ? ~0ULL : ((1ULL<<right_part_len)-1));
+
+    for (int i = 0; i < 3; ++i) {
+        int bit_idx = 3 - i - 1;
+        u64 right_part = (x.d[bit_idx] & bm) << (s % 64);
+        u64 left_part = (x.d[bit_idx] & (~bm)) >> (right_part_len % 64);
+        if (bit_idx-a >= 0) {
+            out.d[bit_idx-a] |= right_part;
+            if (bit_idx-a-1 >= 0) out.d[bit_idx-a-1] |= left_part;
+        }
+    }
+
+    return out;
 }
 
 bool eq_u192(u192 m, u192 n) {
@@ -176,47 +214,6 @@ u192 mul_naive_u192(u192 m, u192 n) {
     return result;
 }
 
-u192 mul_toomcook_u192(u192 m, u192 n) {
-    // these all better not overflow ...
-    // these results can be negative ...
-    // can I ignore it?
-    u64 p_0 = m.d0 + m.d2;
-    u64 p0 = m.d0;
-    u64 p1 = p_0 + m.d1;
-    u64 p_1 = p_0 - m.d1;
-    u64 p_2 = (p_1 + m.d2)*2 - m.d0;
-    u64 pinf = m.d2;
-
-    u64 q_0 = n.d0 + n.d2;
-    u64 q0 = n.d0;
-    u64 q1 = q_0 + n.d1;
-    u64 q_1 = q_0 - n.d1;
-    u64 q_2 = (q_1 + n.d2)*2 - n.d0;
-    u64 qinf = n.d2;
-
-    u64 r0 = p0*q0;
-    u64 r1 = p1*q1;
-    u64 r_1 = p_1*q_1;
-    u64 r_2 = p_2*q_2;
-    u64 rinf = pinf*qinf;
-
-    u64 R0 = r0;
-    u64 R4 = rinf;
-    u64 R3 = (r_2 - r1)/3;
-    u64 R1 = (r1 - r_1)/2;
-    u64 R2 = r_1 - r0;
-    R3 = (R2 - R3)/2 + 2*rinf;
-    R2 = R2 + R1 - R4;
-    R1 = R1 - R3;
-
-    printf("m0=%lu\nm1=%lu\nm2=%lu\n", m.d0, m.d1, m.d2);
-    printf("n0=%lu\nn1=%lu\nn2=%lu\n", n.d0, n.d1, n.d2);
-    printf("p0=%lu\np1=%lu\np_1=%lu\np_2=%lu\np_2=%lu\npinf\n", p0, p1, p_1, p_2, pinf);
-    printf("q0=%lu\nq1=%lu\nq_1=%lu\nq_2=%lu\nq_2=%lu\nqinf\n", q0, q1, q_1, q_2, qinf);
-    printf("R0=%lu\nR1=%lu\nR2=%lu\nR3=%lu\nR4=%lu\n", R0, R1, R2, R3, R4);
-    return (u192){0};
-}
-
 u192 pow_naive_u192(u192 base, u64 power) {
     u192 result = {.d2=1};
 
@@ -266,6 +263,91 @@ u192 mod_naive_u192(u192 m, u192 n) {
     u192 result = {0};
     div_full_u192(m, n, NULL, &result);
     return result;
+}
+
+u192 mul_toomcook_u192(u192 m, u192 n) {
+    // these all better not overflow ...
+    // these results can be negative ...
+    // can I ignore it?
+
+    constexpr u64 b = 32;
+    // b = 2^32
+    // B = b^i = 2^32
+    // The largest number that can be multiplied properly has 96 set bits
+    u192 m2 = (u192){.d2=m.d1 & 0x00000000FFFFFFFFULL};
+    u192 m1 = (u192){.d2=(m.d2 & 0xFFFFFFFF00000000ULL) >> 32ULL};
+    u192 m0 = (u192){.d2=m.d2 & 0x00000000FFFFFFFFULL};
+
+    u192 n2 = (u192){.d2=n.d1 & 0x00000000FFFFFFFFULL};
+    u192 n1 = (u192){.d2=(n.d2 & 0xFFFFFFFF00000000ULL) >> 32ULL};
+    u192 n0 = (u192){.d2=n.d2 & 0x00000000FFFFFFFFULL};
+
+    /* u192 m2 = (u192){.d2=m.d0}; */
+    /* u192 m1 = (u192){.d2=m.d1}; */
+    /* u192 m0 = (u192){.d2=m.d2}; */
+
+    /* u192 n2 = (u192){.d2=n.d0}; */
+    /* u192 n1 = (u192){.d2=n.d1}; */
+    /* u192 n0 = (u192){.d2=n.d2}; */
+    
+    u192 p_0 = add_u192(m0, m2);
+    u192 p0 = m0;
+    u192 p1 = add_u192(p_0, m1);
+    u192 p_1 = sub_u192(p_0, m1);
+    u192 p_2 = add_u192(p_1, m2);
+    p_2 = mul_naive_u192(p_2, (u192){.d2=2});
+    p_2 = sub_u192(p_2, m0);
+    u192 pinf = m2;
+
+    u192 q_0 = add_u192(n0, n2);
+    u192 q0 = n0;
+    u192 q1 = add_u192(q_0, n1);
+    u192 q_1 = sub_u192(q_0, n1);
+    u192 q_2 = add_u192(q_1, n2);
+    q_2 = mul_naive_u192(q_2, (u192){.d2=2});
+    q_2 = sub_u192(q_2, n0);
+    u192 qinf = n2;
+
+    u192 r0 = mul_naive_u192(p0,q0);
+    u192 r1 = mul_naive_u192(p1,q1);
+    u192 r_1 = mul_naive_u192(p_1,q_1);
+    u192 r_2 = mul_naive_u192(p_2,q_2);
+    u192 rinf = mul_naive_u192(pinf,qinf);
+
+    u192 R0 = r0;
+    u192 R4 = rinf;
+    u192 R3 = sub_u192(r_2, r1);
+    R3 = div_naive_u192(R3, (u192){.d2=3});
+    u192 R1 = sub_u192(r1, r_1);
+    R1 = div_naive_u192(R1, (u192){.d2=2});
+    u192 R2 = sub_u192(r_1, r0);
+    
+    R3 = sub_u192(R2, R3);
+    R3 = div_naive_u192(R3, (u192){.d2=2}); // division don't work right here, because unsigned. make a signed div
+    u192 temp = mul_naive_u192((u192){.d2=2}, rinf);
+    R3 = add_u192(R3, temp);
+
+    R2 = add_u192(R2, R1);
+    R2 = sub_u192(R2, R4);
+    R1 = sub_u192(R1, R3);
+
+    /* printf("m0=%lu\nm1=%lu\nm2=%lu\n", m0, m1, m2); */
+    /* printf("n0=%lu\nn1=%lu\nn2=%lu\n", n0, n1, n2); */
+    /* printf("p0=%lu\np1=%lu\np_1=%lu\np_2=%lu\np_2=%lu\npinf\n", p0, p1, p_1, p_2, pinf); */
+    /* printf("q0=%lu\nq1=%lu\nq_1=%lu\nq_2=%lu\nq_2=%lu\nqinf\n", q0, q1, q_1, q_2, qinf); */
+    /* printf("R0=%lu\nR1=%lu\nR2=%lu\nR3=%lu\nR4=%lu\n", R0, R1, R2, R3, R4); */
+    
+    R1 = logshl_u192(R1, b*1);
+    R2 = logshl_u192(R2, b*2);
+    R3 = logshl_u192(R3, b*3);
+    R4 = logshl_u192(R4, b*4);
+    
+    R0 = add_u192(R0, R1);
+    R0 = add_u192(R0, R2);
+    R0 = add_u192(R0, R3);
+    R0 = add_u192(R0, R4);
+    
+    return R0;
 }
 
 u192 make_u192(str s) {
@@ -622,7 +704,21 @@ int main() {
 
     u192 m = make_u192(str_lit("1234567890123456789012"));
     u192 n = make_u192(str_lit("987654321987654321098"));
-    mul_toomcook_u192(m, n);
+    u192 out = mul_toomcook_u192(m, n);
+    str s = tostr_u192(out);
+    printf("%s", s.data);
+
+    /* u192 m = (u192) { */
+    /*     .d0 = 0, */
+    /*     .d1 = 0, */
+    /*     .d2 = 0xABCDF0000000000E, */
+    /* }; */
+
+    /* u192 out = logshl_u192(m, 1); */
+    /* printf("%064lb%064lb%064lb\n", m.d0, m.d1, m.d2); */
+    /* printf("%064lb%064lb%064lb\n", out.d0, out.d1, out.d2); */
+    /* str s = tostr_u192(out); */
+    /* printf("%s\n", s.data); */
 
     return 0;
 }

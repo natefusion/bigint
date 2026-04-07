@@ -11,7 +11,7 @@ SRC_DIR := src
 CC := gcc
 SRCS := src/main.c src/randq.c
 
-CFLAGS := -Wall -Werror -Wextra -pedantic -Werror=format-security -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wconversion -fno-omit-frame-pointer -pipe
+CFLAGS := -Wall -Werror -Wextra -pedantic -Werror=format-security -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wconversion -fno-omit-frame-pointer -pipe -std=gnu23
 CPPFLAGS := -MMD -MP
 
 ifeq ($(mode), debug)
