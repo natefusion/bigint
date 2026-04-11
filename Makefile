@@ -12,6 +12,7 @@ CC := gcc
 SRCS := src/main.c src/randq.c
 
 CFLAGS := -Wall -Werror -Wextra -pedantic -Werror=format-security -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wconversion -fno-omit-frame-pointer -pipe -std=gnu23
+LDFLAGS := -lm
 CPPFLAGS := -MMD -MP
 
 ifeq ($(mode), debug)
@@ -34,7 +35,7 @@ DIR_DUP = mkdir -p $(@D)
 all: $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJS)
-	$(CC) $^ -o $@
+	$(CC) $^ $(LDFLAGS) -o $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	$(DIR_DUP)
